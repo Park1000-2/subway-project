@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>앉아서 가기</title>
+<meta name="description" content="출퇴근 시각에 맞춰 가장 앉을 가능성이 큰 지하철 열차를 찾습니다">
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#0d1620">
+<link rel="icon" href="./icons/favicon-64.png" sizes="64x64" type="image/png">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="앉아서 가기">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@500;700;800&family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+:root{
+  --bg:#eef1f5; --surface:#ffffff; --surface-2:#f5f7fa; --board:#0d1620; --board-ink:#e8edf3;
+  --ink:#0f1418; --ink-2:#4b5663; --ink-3:#7c8795; --rule:#dde3ea; --rule-2:#eceff4;
+  --accent:#19499b; --accent-soft:#e4ecfa;
+  --good:#0ca30c; --warn:#fab219; --serious:#ec835a; --critical:#d03b3b;
+  --seq-100:#cde2fb; --seq-250:#86b6ef; --seq-450:#2a78d6; --seq-600:#184f95;
+  --bar:#2a78d6; --bar-hi:#19499b;
+  --shadow:0 1px 2px rgba(13,22,32,.06), 0 8px 24px -16px rgba(13,22,32,.35);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e1114; --surface:#171b20; --surface-2:#1f242a; --board:#090d12; --board-ink:#e8edf3;
+  --ink:#eef1f4; --ink-2:#b2bcc7; --ink-3:#848e99; --rule:#282e35; --rule-2:#21262c;
+  --accent:#6ea6f5; --accent-soft:#1b2a40;
+  --seq-100:#184f95; --seq-250:#2a78d6; --seq-450:#6da7ec; --seq-600:#cde2fb;
+  --bar:#2d5f9e; --bar-hi:#7fb4f7;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.8);
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0e1114; --surface:#171b20; --surface-2:#1f242a; --board:#090d12; --board-ink:#e8edf3;
+  --ink:#eef1f4; --ink-2:#b2bcc7; --ink-3:#848e99; --rule:#282e35; --rule-2:#21262c;
+  --accent:#6ea6f5; --accent-soft:#1b2a40;
+  --seq-100:#184f95; --seq-250:#2a78d6; --seq-450:#6da7ec; --seq-600:#cde2fb;
+  --bar:#2d5f9e; --bar-hi:#7fb4f7;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.8);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Noto Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo",sans-serif;
+  font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:"Gothic A1","Noto Sans KR",sans-serif;margin:0;text-wrap:balance}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.wrap{max-width:980px;margin:0 auto;padding-inline:16px}
+.eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);font-weight:700}
+
+/* ── 안내판 헤더 ── */
+.board{background:var(--board);color:var(--board-ink);
+  padding-block:22px 20px;padding-top:calc(22px + env(safe-area-inset-top,0px))}
+.board .wrap{display:flex;flex-direction:column;gap:18px}
+.brandrow{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.brandrow h1{font-size:23px;font-weight:800;letter-spacing:-.02em}
+.brandrow p{margin:0;color:#8fa0b4;font-size:12.5px}
+.controls{display:grid;gap:10px 12px;grid-template-columns:repeat(4,minmax(0,1fr))}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.field label{font-size:11px;letter-spacing:.08em;color:#8fa0b4;font-weight:700}
+.field input,.field select{width:100%;background:#16212e;border:1px solid #2b3a4c;color:#f2f6fa;
+  border-radius:7px;padding:9px 10px;font:inherit;font-size:14px}
+.field input:focus-visible,.field select:focus-visible,button:focus-visible{outline:2px solid #6ea6f5;outline-offset:1px}
+.field .mono{font-family:"IBM Plex Mono",monospace}
+.controls .go{grid-column:span 4;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+button.primary{background:#2f7bea;color:#fff;border:0;border-radius:7px;padding:10px 20px;
+  font:700 14px/1 "Gothic A1",sans-serif;cursor:pointer}
+button.primary:hover{background:#4a8ef0}
+.hint{color:#8fa0b4;font-size:12px}
+@media (max-width:760px){.controls{grid-template-columns:repeat(2,minmax(0,1fr))}.controls .go{grid-column:span 2}}
+@media (max-width:430px){.controls{grid-template-columns:1fr}.controls .go{grid-column:span 1}
+  .brandrow p{display:none}}
+
+/* ── 즐겨찾기 ── */
+.favs{display:flex;flex-wrap:wrap;gap:7px;align-items:center;
+  border-top:1px solid #22303f;padding-top:14px}
+.favs-label{font-size:11px;letter-spacing:.08em;color:#8fa0b4;font-weight:700;margin-right:3px}
+.fav{display:inline-flex;align-items:stretch;border:1px solid #2b3a4c;border-radius:999px;
+  background:#16212e;overflow:hidden}
+.fav.active{border-color:#2f7bea;background:#1b2e49}
+.fav button{background:none;border:0;color:#dce6f2;font:inherit;font-size:12.5px;cursor:pointer;
+  padding:6px 4px 6px 13px}
+.fav button em{font-style:normal;color:#8fa0b4;margin-left:7px;
+  font-family:"IBM Plex Mono",monospace;font-size:11.5px}
+.fav.active button em{color:#a8c6f0}
+.fav .fav-x{padding:6px 11px 6px 7px;color:#6d7f93;font-size:14px;line-height:1}
+.fav .fav-x:hover{color:#ff8f8f}
+.fav button:hover{color:#fff}
+.fav-add{border:1px dashed #38485c;border-radius:999px;background:none;color:#8fa0b4;
+  font:600 12.5px/1 "Noto Sans KR",sans-serif;padding:7px 13px;cursor:pointer}
+.fav-add:hover:not(:disabled){border-color:#2f7bea;color:#cfe0f5}
+.fav-add:disabled{opacity:.45;cursor:default}
+
+main{padding-block:22px calc(40px + env(safe-area-inset-bottom,0px));
+  display:flex;flex-direction:column;gap:22px}
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:12px;box-shadow:var(--shadow)}
+.card.pad{padding:18px}
+h2{font-size:15px;font-weight:700;margin-bottom:10px}
+h2 .sub{font-weight:400;color:var(--ink-3);font-size:12.5px;margin-left:8px;letter-spacing:0}
+
+/* ── 추천 ── */
+.hero{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:0}
+.hero-left{padding:20px;border-right:1px solid var(--rule)}
+.hero-right{padding:20px;display:flex;flex-direction:column;gap:14px}
+@media (max-width:720px){.hero{grid-template-columns:1fr}.hero-left{border-right:0;border-bottom:1px solid var(--rule)}}
+.depart{display:flex;align-items:flex-end;gap:10px;margin-top:4px}
+.depart .t{font-family:"IBM Plex Mono",monospace;font-size:52px;font-weight:600;letter-spacing:-.03em;line-height:1}
+.depart .at{color:var(--ink-2);font-size:13px;padding-bottom:7px}
+.trip{margin-top:12px;display:flex;flex-wrap:wrap;gap:6px 16px;color:var(--ink-2);font-size:13px}
+.trip b{color:var(--ink);font-weight:600}
+.statline{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.statline .k{font-size:12.5px;color:var(--ink-2)}
+.statline .v{font-family:"IBM Plex Mono",monospace;font-size:26px;font-weight:600;line-height:1.1}
+.statline .v small{font-size:13px;font-weight:500;color:var(--ink-3);margin-left:2px}
+.meter{height:8px;border-radius:999px;background:var(--surface-2);overflow:hidden;margin-top:6px;
+  border:1px solid var(--rule-2)}
+.meter i{display:block;height:100%;background:var(--accent);border-radius:999px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 10px;
+  font-size:12px;font-weight:700;border:1px solid var(--rule);background:var(--surface-2);color:var(--ink-2)}
+.chip .dot{width:8px;height:8px;border-radius:50%;flex:none}
+.chip.line{color:#fff;border:0;font-family:"Gothic A1",sans-serif}
+.note{background:var(--accent-soft);border:1px solid var(--rule);border-radius:10px;padding:12px 14px;
+  font-size:13px;color:var(--ink-2)}
+.note b{color:var(--ink)}
+.warnbox{border-left:3px solid var(--critical)}
+
+/* ── 경로 스트립 ── */
+.route{display:flex;flex-direction:column;gap:0;margin-top:4px}
+.leg{display:grid;grid-template-columns:76px 1fr;gap:12px;padding:11px 0;border-top:1px solid var(--rule-2)}
+.leg:first-child{border-top:0}
+.leg .bar{border-radius:4px;width:6px;justify-self:start;margin-left:14px;grid-row:span 1}
+.leg .when{font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--ink-2)}
+.leg .what{min-width:0}
+.leg .what .top{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.leg .what .det{color:var(--ink-3);font-size:12.5px;margin-top:3px}
+.xfer{font-size:12.5px;color:var(--ink-2);padding:8px 0 8px 88px;border-top:1px dashed var(--rule);
+  background:var(--surface-2)}
+
+/* ── 차트 ── */
+.panels{display:flex;flex-direction:column;gap:4px}
+.panel-title{display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+  font-size:12.5px;color:var(--ink-2);padding:0 2px 2px}
+.panel-title b{color:var(--ink);font-weight:600;font-size:13px}
+svg{display:block;width:100%;height:auto;overflow:visible}
+.tip{position:fixed;pointer-events:none;z-index:40;background:var(--board);color:#eef3f8;
+  border-radius:8px;padding:8px 10px;font-size:12px;line-height:1.5;box-shadow:0 8px 24px -8px rgba(0,0,0,.6);
+  opacity:0;transition:opacity .12s;max-width:230px}
+.tip.on{opacity:1}
+.tip .tt{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:13px}
+.tip em{color:#9fb3c8;font-style:normal}
+
+/* ── 표 ── */
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px;min-width:560px}
+th,td{text-align:right;padding:8px 10px;border-bottom:1px solid var(--rule-2);white-space:nowrap}
+th{font-size:11px;letter-spacing:.06em;color:var(--ink-3);font-weight:700;text-align:right;
+  border-bottom:1px solid var(--rule);position:sticky;top:0;background:var(--surface)}
+th:first-child,td:first-child{text-align:left}
+td.num{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+tr.best td{background:var(--accent-soft)}
+tr.out td{color:var(--ink-3)}
+.tag{display:inline-block;font-size:10.5px;font-weight:700;border-radius:4px;padding:1px 6px;
+  background:var(--accent);color:#fff;margin-left:6px;vertical-align:1px}
+.tag.ghost{background:transparent;border:1px solid var(--rule);color:var(--ink-3)}
+
+footer.sources{color:var(--ink-3);font-size:12.5px;line-height:1.7;
+  border-top:1px solid var(--rule);padding-top:16px}
+footer.sources a{color:var(--ink-2)}
+footer.sources h3{font-size:12.5px;color:var(--ink-2);margin-bottom:4px}
+footer.sources ul{margin:0 0 10px;padding-left:18px}
+.empty{padding:28px 18px;text-align:center;color:var(--ink-3)}
+.card .hint{color:var(--ink-3);font-size:11.5px;margin-top:8px;display:block}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<header class="board">
+  <div class="wrap">
+    <div class="brandrow">
+      <h1>앉아서 가기</h1>
+      <p>출퇴근 시각에 맞춰 가장 앉을 가능성이 큰 열차를 찾습니다 · 수도권 전철 프로토타입</p>
+    </div>
+    <form class="controls" id="form">
+      <div class="field"><label for="home">집 역</label>
+        <input id="home" list="stations" autocomplete="off" value="서울역" spellcheck="false"></div>
+      <div class="field"><label for="work">회사 역</label>
+        <input id="work" list="stations" autocomplete="off" value="강남" spellcheck="false"></div>
+      <div class="field"><label for="basis">기준</label>
+        <select id="basis">
+          <option value="arrive">출근 — 집 → 회사</option>
+          <option value="depart">퇴근 — 회사 → 집</option>
+        </select></div>
+      <div class="field"><label for="time" id="timeLabel">회사 도착 시각</label>
+        <input id="time" type="time" class="mono" value="09:00" step="300"></div>
+      <div class="field"><label for="day">요일</label>
+        <select id="day"><option value="weekday">평일</option><option value="sat">토요일</option><option value="sun">일요일</option></select></div>
+      <div class="field"><label for="mode">경로 기준</label>
+        <select id="mode"><option value="fast">빠른 환승(최소 시간)</option><option value="minTransfer">최소 환승</option></select></div>
+      <div class="field" id="bufferField">
+        <label for="buffer" title="목표 시각보다 최소 이만큼은 먼저 도착하도록 합니다">최소 도착 여유(분)</label>
+        <input id="buffer" type="number" class="mono" value="10" min="0" max="60" step="5"
+          title="목표 시각보다 최소 이만큼은 먼저 도착하도록 합니다"></div>
+      <div class="field">
+        <label for="window" id="windowLabel">일찍 도착해도 괜찮은 한도(분)</label>
+        <input id="window" type="number" class="mono" value="45" min="10" max="150" step="5"></div>
+      <div class="field"><label for="walk" id="walkLabel">집에서 역까지 도보(분)</label>
+        <input id="walk" type="number" class="mono" value="8" min="0" max="60" step="1"></div>
+      <div class="go">
+        <button class="primary" type="submit">추천 받기</button>
+        <span class="hint" id="hint"></span>
+      </div>
+    </form>
+    <div class="favs" id="favs"></div>
+    <datalist id="stations"></datalist>
+  </div>
+</header>
+<main class="wrap">
+  <section id="summary"></section>
+  <section id="charts"></section>
+  <section id="profile"></section>
+  <section id="cars"></section>
+  <section id="trains"></section>
+  <footer class="sources" id="sources"></footer>
+</main>
+<div class="tip" id="tip" role="status" aria-live="polite"></div>
+<script type="module" src="./src/app.js"></script>
+</body>
+</html>

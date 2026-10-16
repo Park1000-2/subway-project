@@ -1,0 +1,17 @@
+{
+  "name": "앉아서 가기",
+  "short_name": "앉아서 가기",
+  "description": "출퇴근 시각에 맞춰 가장 앉을 가능성이 큰 지하철 열차를 찾습니다",
+  "lang": "ko",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0d1620",
+  "theme_color": "#0d1620",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
