@@ -150,8 +150,10 @@ function readForm() {
 }
 
 /* ── 조각 ── */
-const lineChip = (line) =>
-  `<span class="chip line" style="background:${line.color}">${esc(line.name)}</span>`;
+/** 노선도 배지 — 숫자 노선은 원형, 이름 노선은 알약 */
+const badgeText = (line) => line.name.replace(/호선$/, '').replace(/^공항철도$/, '공항');
+const lineBadge = (line) =>
+  `<span class="badge" style="background:${line.color}">${esc(badgeText(line))}</span>`;
 
 const congChip = (c) => {
   const lv = congestionLevel(c);
@@ -164,103 +166,112 @@ function renderSummary(plan, opts) {
   host.innerHTML = '';
   const { best, route, alternative } = plan;
   if (!route) {
-    host.append(el('div', 'card empty', `<b>${esc(opts.from)} → ${esc(opts.to)}</b> 경로를 찾지 못했습니다.<br>수록된 역명인지 확인해 주세요. (프로토타입은 주요 노선만 수록)`));
+    host.append(el('div', 'empty', `<b>${esc(opts.from)} → ${esc(opts.to)}</b> 경로를 찾지 못했습니다.<br>수록된 역명인지 확인해 주세요. (프로토타입은 주요 노선만 수록)`));
     return;
   }
   if (!best) {
-    host.append(el('div', 'card empty', '조건을 만족하는 열차가 없습니다. 도착 여유나 허용 시간을 늘려 보세요.'));
+    host.append(el('div', 'empty', '조건을 만족하는 열차가 없습니다. 여유나 한도를 늘려 보세요.'));
     return;
   }
+
+  // 화면 전체의 액센트를 '지금 타는 노선의 색'으로
+  document.documentElement.style.setProperty('--line', best.legs[0].line.color);
 
   const depart = opts.basis === 'depart';
   const leave = depart
     ? Math.max(opts.anchor, best.boardTime - opts.walk - 2)
     : best.boardTime - opts.walk - 2;
   const idle = Math.round(best.boardTime - (leave + opts.walk));
-  const card = el('div', 'card hero');
-  const left = el('div', 'hero-left');
-  left.innerHTML = `
-    <div class="eyebrow">추천 열차</div>
-    <div class="depart"><span class="t">${toHHMM(best.boardTime)}</span>
-      <span class="at">${esc(opts.from)} 승차 · ${lineById.get(best.legs[0].lineId).name}</span></div>
-    <div class="trip">
-      <span><b>${toHHMM(best.arrival)}</b> ${esc(opts.to)} 도착</span>
-      <span>소요 <b>${Math.round(best.totalMinutes)}분</b></span>
-      <span>환승 <b>${route.transfers}회</b></span>
-      <span>${depart ? `퇴근 후 <b>${Math.round(best.wait)}분</b> 뒤` : `목표까지 <b>${Math.round(best.slack)}분</b> 여유`}</span>
-    </div>
-    <div class="note" style="margin-top:14px">
-      ${depart ? '회사' : '집'}에서 <b class="mono">${toHHMM(leave)}</b>에 나서면
-      도보 ${opts.walk}분 + 대기 ${idle}분으로 이 열차를 탑니다.
-      ${depart && best.wait > 6 ? `<br>${toHHMM(opts.anchor)}에 바로 나서면 역에서 <b>${Math.round(best.wait)}분</b>을 기다리게 됩니다.` : ''}
-    </div>`;
+  const lv = congestionLevel(best.worstCongestion);
 
-  const right = el('div', 'hero-right');
-  right.innerHTML = `
-    <div>
-      <div class="statline"><span class="k">하차 전에 앉을 확률</span>
-        <span class="v">${pct(best.sitChance)}</span></div>
-      <div class="meter"><i style="width:${Math.round(best.sitChance * 100)}%"></i></div>
-    </div>
-    <div>
-      <div class="statline"><span class="k">앉아서 가는 구간 비율</span>
-        <span class="v">${pct(best.seatedRatio)}<small>/ ${Math.round(best.rideTotal)}분</small></span></div>
-      <div class="meter"><i style="width:${Math.round(best.seatedRatio * 100)}%;background:var(--seq-250)"></i></div>
-    </div>
-    <div class="chips">
-      ${congChip(best.worstCongestion)}
-      <span class="chip">못 탈 위험 ${pct(best.failRisk)}</span>
-      ${best.legs[0].car.targetCar
-        ? `<span class="chip">${best.legs[0].car.balanced.car}호차 승차 → ${exitText(best.legs[0].car.transfer)} 하차</span>`
-        : `<span class="chip">한산한 칸 ${best.legs[0].car.quietCars.map((c) => c.car).join('·')}번</span>`}
-    </div>`;
-  card.append(left, right);
-  host.append(card);
+  const band = el('div', 'sign-band');
+  band.innerHTML = `
+    <div class="lead">${depart ? '퇴근 추천' : '출근 추천'}</div>
+    <div class="clock">${toHHMM(best.boardTime)}</div>
+    <div class="where"><b>${esc(opts.from)}</b>에서 승차<br>
+      <span>${toHHMM(best.arrival)} ${esc(opts.to)} 도착 · ${Math.round(best.totalMinutes)}분 ·
+      환승 ${route.transfers}회 ·
+      ${depart ? `퇴근 후 ${Math.round(best.wait)}분 뒤` : `목표까지 ${Math.round(best.slack)}분 여유`}</span></div>`;
+
+  const rows = el('div', 'sign-rows');
+  rows.innerHTML = `
+    <div><div class="k">앉을 확률</div><div class="v">${pct(best.sitChance)}</div>
+      <div class="bar"><i style="width:${Math.round(best.sitChance * 100)}%"></i></div></div>
+    <div><div class="k">앉아가는 구간</div><div class="v">${pct(best.seatedRatio)}<small>${Math.round(best.rideTotal)}분 중</small></div>
+      <div class="bar"><i style="width:${Math.round(best.seatedRatio * 100)}%"></i></div></div>
+    <div><div class="k">최대 혼잡도</div>
+      <div class="v">${Math.round(best.worstCongestion)}<small>% ${lv.label}</small></div>
+      <div class="bar"><i style="width:${Math.min(100, best.worstCongestion / 2)}%;background:${LEVEL_COLOR[lv.key]}"></i></div></div>
+    <div><div class="k">못 탈 위험</div><div class="v">${pct(best.failRisk)}</div>
+      <div class="bar"><i style="width:${Math.round(best.failRisk * 100)}%;background:var(--critical)"></i></div></div>`;
+  host.append(band, rows);
+
+  host.append(el('div', 'callout', `
+    ${depart ? '회사' : '집'}에서 <b class="mono">${toHHMM(leave)}</b>에 나서면
+    도보 ${opts.walk}분 + 대기 ${idle}분으로 이 열차를 탑니다.
+    ${depart && best.wait > 6 ? `<br>${toHHMM(opts.anchor)}에 바로 나서면 역에서 <b>${Math.round(best.wait)}분</b>을 기다리게 됩니다.` : ''}`));
 
   if (alternative) {
-    host.append(el('div', 'note', `
-      <b class="mono">${toHHMM(alternative.boardTime)}</b> 열차를 타면 앉을 확률이
-      <b>${pct(best.sitChance)} → ${pct(alternative.sitChance)}</b>로 올라갑니다 — ${opts.basis === 'depart'
+    host.append(el('div', 'callout', `
+      <b class="mono">${toHHMM(alternative.boardTime)}</b> 열차는 앉을 확률이
+      <b>${pct(best.sitChance)} → ${pct(alternative.sitChance)}</b>로 올라갑니다 — ${depart
         ? `대신 역에서 <b>${Math.round(alternative.wait)}분</b>을 기다려야 합니다.`
         : `추천 열차보다 <b>${Math.round(best.boardTime - alternative.boardTime)}분</b> 일찍 나서고
            목표보다 <b>${Math.round(alternative.slack)}분</b> 먼저 도착합니다.`}`));
   }
   if (best.failRisk > 0.25) {
-    host.append(el('div', 'note warnbox', `
+    host.append(el('div', 'callout warn', `
       이 시간대 <b>${esc(opts.from)}</b>은 혼잡도 ${Math.round(best.firstLegCongestion)}%로,
       한 대를 보내게 될 확률이 <b>${pct(best.failRisk)}</b>입니다. 한 대 앞 열차를 기준으로 움직이는 편이 안전합니다.`));
   }
 
-  // 경로
-  const rc = el('div', 'card pad');
-  rc.append(el('div', 'eyebrow', '경로'));
-  const list = el('div', 'route');
+  // ── 세로 노선도 ──
+  const sec = el('section');
+  sec.append(el('h2', null, '경로'));
+  const track = el('div', 'track');
+  const stop = (time, name, sub, color, cls = '') => `
+    <div class="trk stop ${cls}" style="--c:${color}">
+      <div class="time">${time}</div><div class="rail"><span class="dot"></span></div>
+      <div class="name">${esc(name)}${sub ? `<small>${sub}</small>` : ''}</div>
+    </div>`;
+
   best.legs.forEach((leg, i) => {
-    const row = el('div', 'leg');
-    row.innerHTML = `
-      <div class="when">${toHHMM(leg.depart)}<br><span style="color:var(--ink-3)">${toHHMM(leg.arrive)}</span></div>
-      <div class="what">
-        <div class="top">${lineChip(leg.line)}
-          <b>${esc(leg.from)} → ${esc(leg.to)}</b>
-          <span style="color:var(--ink-3)">${leg.hops}정거장 · ${Math.round(leg.rideMinutes)}분</span></div>
-        <div class="det">승차 혼잡도 ${Math.round(leg.boardCongestion)}% · 구간 최대 ${Math.round(leg.maxCongestion)}%
-          · 이 구간 착석 확률 ${pct(leg.seat.probability)} · 배차 ${leg.headway.toFixed(1)}분</div>
-      </div>`;
-    list.append(row);
+    const c = leg.line.color;
+    track.insertAdjacentHTML('beforeend',
+      stop(toHHMM(leg.depart), leg.from, i === 0 ? `${esc(leg.line.name)} 승차` : '', c));
+    track.insertAdjacentHTML('beforeend', `
+      <div class="trk ride" style="--c:${c}">
+        <div class="time"></div><div class="rail"></div>
+        <div class="body">
+          <div class="hd">${lineBadge(leg.line)} ${esc(leg.line.name)}
+            <span style="color:var(--ink-3)">${leg.hops}정거장 · ${Math.round(leg.rideMinutes)}분 · 배차 ${leg.headway.toFixed(1)}분</span></div>
+          승차 혼잡도 ${Math.round(leg.boardCongestion)}% · 구간 최대 ${Math.round(leg.maxCongestion)}%
+          · 이 구간 착석 ${pct(leg.seat.probability)}
+        </div>
+      </div>`);
     const next = best.legs[i + 1];
     if (next) {
       const t = leg.car?.transfer;
       const walk = leg.walkToNext ?? next.transferWalk;
       const detail = !t ? ''
         : ` · <b>${exitText(t)}</b> 하차`
-          + (t.boardCar ? ` → ${esc(next.line.name)} <b>${t.boardCar}-${t.boardDoor}</b> 승차` : '')
+          + (t.boardCar ? ` → <b>${t.boardCar}-${t.boardDoor}</b> 승차` : '')
           + (t.ambiguous ? ' <span style="color:var(--ink-3)">(진행 방향에 따라 다름)</span>'
             : t.precise ? '' : ' <span style="color:var(--ink-3)">(국가철도공단)</span>');
-      list.append(el('div', 'xfer', `${esc(leg.to)} 환승 · 도보 ${walk.toFixed(1)}분 + 대기 ${Math.round(next.wait)}분${detail}`));
+      track.insertAdjacentHTML('beforeend',
+        stop(toHHMM(leg.arrive), leg.to, `${esc(next.line.name)}로 환승`, c));
+      track.insertAdjacentHTML('beforeend', `
+        <div class="trk xfer" style="--c:${next.line.color}">
+          <div class="time"></div><div class="rail"></div>
+          <div class="body">도보 ${walk.toFixed(1)}분 + 대기 ${Math.round(next.wait)}분${detail}</div>
+        </div>`);
+    } else {
+      track.insertAdjacentHTML('beforeend',
+        stop(toHHMM(leg.arrive), leg.to, '도착', c, 'last'));
     }
   });
-  rc.append(list);
-  host.append(rc);
+  sec.append(track);
+  host.append(sec);
 }
 
 /* ── 시간대 곡선 ── */
@@ -292,8 +303,9 @@ function renderCharts(plan, opts) {
 
   const ticks = [];
   for (let t = Math.ceil(x0 / 30) * 30; t <= x1; t += 30) ticks.push(t);
+  // 맨 위 cMax 라벨과 겹치지 않도록 여유를 둡니다
   const refs = [[SEAT_FULL, '34% 좌석 만석'], [80, '80%'], [120, '120% 혼잡'], [150, '150%']]
-    .filter(([v]) => v <= cMax);
+    .filter(([v]) => v <= cMax * 0.93);
 
   const svg = `
   <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="승차 시각별 혼잡도와 착석 확률 곡선. 수치는 아래 표에 있습니다.">
@@ -331,9 +343,9 @@ function renderCharts(plan, opts) {
     <rect id="hit" x="${PL}" y="${PT}" width="${W - PL - PR}" height="${PH * 2 + GAP}" fill="transparent"></rect>
   </svg>`;
 
-  const card = el('div', 'card pad');
+  const card = el('div');
   card.append(el('h2', null, `승차 시각에 따른 변화 <span class="sub">${opts.basis === 'depart'
-    ? '파란 구간이 기다릴 만한 범위 안의 열차' : '파란 구간이 목표 시각을 지키는 열차'}</span>`));
+    ? '색칠된 구간이 기다릴 만한 범위 안의 열차' : '색칠된 구간이 목표 시각을 지키는 열차'}</span>`));
   const box = el('div', null, svg);
   card.append(box);
   host.append(card);
@@ -496,7 +508,7 @@ function renderProfile(plan) {
     ${bars}${labels}
   </svg>`));
 
-  const note = el('div', 'note');
+  const note = el('div', 'callout');
   const topText = top.map((p) => `<b>${esc(p.station)}</b>(${Math.round(p.alightShare * 100)}%)`).join(', ');
   // 좌석 회전이 집계 하차율보다 얼마나 빠른지
   const turn = pts.filter((p) => p.kind === 'stop' && p.seatAlightFrac > 0 && p.congestion > SEAT_FULL);
@@ -573,7 +585,7 @@ function renderCars(plan) {
   </svg>`));
 
   // 행동 지침 + 비교
-  const g = el('div', 'note');
+  const g = el('div', 'callout');
   if (c.transfer?.ambiguous) {
     g.innerHTML = `하차 위치는 <b>${exitText(c.transfer)}</b>입니다 — 이 조합은 타고 온 방향 구분이 없는
       데이터라 둘 중 어느 쪽인지는 단정할 수 없습니다(보통 서로 거울 위치입니다).

@@ -15,169 +15,190 @@
 <meta name="apple-mobile-web-app-title" content="앉아서 가기">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@500;700;800&family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <style>
+/* ──────────────────────────────────────────────────────────────
+   역 안내 사인의 어법으로. 색은 '지금 타는 노선의 색' 하나만 쓰고,
+   나머지는 종이와 잉크. 모서리는 거의 직각 — 사인은 둥글지 않습니다.
+   ────────────────────────────────────────────────────────────── */
 :root{
-  --bg:#eef1f5; --surface:#ffffff; --surface-2:#f5f7fa; --board:#0d1620; --board-ink:#e8edf3;
-  --ink:#0f1418; --ink-2:#4b5663; --ink-3:#7c8795; --rule:#dde3ea; --rule-2:#eceff4;
-  --accent:#19499b; --accent-soft:#e4ecfa;
+  --paper:#f3f2ee; --sheet:#fbfaf7; --ink:#14161a; --ink-2:#55595f; --ink-3:#8b8f96;
+  --rule:#dcd8d1; --rule-2:#e9e6e0; --board:#15171b; --board-ink:#edefF2; --board-2:#8b949f;
+  --line:#2a78d6;                      /* 경로에 따라 JS가 바꿉니다 */
   --good:#0ca30c; --warn:#fab219; --serious:#ec835a; --critical:#d03b3b;
-  --seq-100:#cde2fb; --seq-250:#86b6ef; --seq-450:#2a78d6; --seq-600:#184f95;
-  --bar:#2a78d6; --bar-hi:#19499b;
-  --shadow:0 1px 2px rgba(13,22,32,.06), 0 8px 24px -16px rgba(13,22,32,.35);
+  --grid:#c9c4bb;
+  /* 차트 색 — 수치는 잉크 계열로 그리고, 강조(추천 열차·한산한 칸)만 노선색을 씁니다.
+     노선색이 주황일 때 혼잡도 경고색과 부딪히지 않게 하려는 분리입니다. */
+  --series:#39424d; --series-soft:#98a2ad; --bar:#aab2bb;
+  --accent:var(--line); --accent-soft:color-mix(in srgb,var(--line) 14%,transparent);
+  --surface:var(--sheet); --seq-450:var(--series); --seq-250:var(--series-soft);
+  --bar-hi:var(--line); --rule-2:#e9e6e0;
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#0e1114; --surface:#171b20; --surface-2:#1f242a; --board:#090d12; --board-ink:#e8edf3;
-  --ink:#eef1f4; --ink-2:#b2bcc7; --ink-3:#848e99; --rule:#282e35; --rule-2:#21262c;
-  --accent:#6ea6f5; --accent-soft:#1b2a40;
-  --seq-100:#184f95; --seq-250:#2a78d6; --seq-450:#6da7ec; --seq-600:#cde2fb;
-  --bar:#2d5f9e; --bar-hi:#7fb4f7;
-  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.8);
+  --paper:#101114; --sheet:#17191d; --ink:#eceef1; --ink-2:#aeb3ba; --ink-3:#7d828a;
+  --rule:#2b2e33; --rule-2:#212429; --board:#0a0b0d; --board-ink:#edeff2; --board-2:#868e99;
+  --grid:#3a3e45;
+  --series:#b4bfcb; --series-soft:#616c79; --bar:#515b67;
+  --surface:var(--sheet); --seq-450:var(--series); --seq-250:var(--series-soft);
   color-scheme:dark;
 }}
 :root[data-theme="dark"]{
-  --bg:#0e1114; --surface:#171b20; --surface-2:#1f242a; --board:#090d12; --board-ink:#e8edf3;
-  --ink:#eef1f4; --ink-2:#b2bcc7; --ink-3:#848e99; --rule:#282e35; --rule-2:#21262c;
-  --accent:#6ea6f5; --accent-soft:#1b2a40;
-  --seq-100:#184f95; --seq-250:#2a78d6; --seq-450:#6da7ec; --seq-600:#cde2fb;
-  --bar:#2d5f9e; --bar-hi:#7fb4f7;
-  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.8);
+  --paper:#101114; --sheet:#17191d; --ink:#eceef1; --ink-2:#aeb3ba; --ink-3:#7d828a;
+  --rule:#2b2e33; --rule-2:#212429; --board:#0a0b0d; --board-ink:#edeff2; --board-2:#868e99;
+  --grid:#3a3e45;
+  --series:#b4bfcb; --series-soft:#616c79; --bar:#515b67;
+  --surface:var(--sheet); --seq-450:var(--series); --seq-250:var(--series-soft);
   color-scheme:dark;
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-body{margin:0;background:var(--bg);color:var(--ink);
+body{margin:0;background:var(--paper);color:var(--ink);
   font-family:"Noto Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo",sans-serif;
-  font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased}
-h1,h2,h3{font-family:"Gothic A1","Noto Sans KR",sans-serif;margin:0;text-wrap:balance}
+  font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.sign{font-family:"Black Han Sans","Gothic A1",sans-serif;font-weight:400;letter-spacing:-.01em}
 .mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
-.wrap{max-width:980px;margin:0 auto;padding-inline:16px}
-.eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);font-weight:700}
+.wrap{max-width:900px;margin:0 auto;padding-inline:18px}
+a{color:inherit}
 
-/* ── 안내판 헤더 ── */
+/* ── 상단 안내판 ── */
 .board{background:var(--board);color:var(--board-ink);
-  padding-block:22px 20px;padding-top:calc(22px + env(safe-area-inset-top,0px))}
-.board .wrap{display:flex;flex-direction:column;gap:18px}
-.brandrow{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
-.brandrow h1{font-size:23px;font-weight:800;letter-spacing:-.02em}
-.brandrow p{margin:0;color:#8fa0b4;font-size:12.5px}
-.controls{display:grid;gap:10px 12px;grid-template-columns:repeat(4,minmax(0,1fr))}
-.field{display:flex;flex-direction:column;gap:5px;min-width:0}
-.field label{font-size:11px;letter-spacing:.08em;color:#8fa0b4;font-weight:700}
-.field input,.field select{width:100%;background:#16212e;border:1px solid #2b3a4c;color:#f2f6fa;
-  border-radius:7px;padding:9px 10px;font:inherit;font-size:14px}
-.field input:focus-visible,.field select:focus-visible,button:focus-visible{outline:2px solid #6ea6f5;outline-offset:1px}
-.field .mono{font-family:"IBM Plex Mono",monospace}
-.controls .go{grid-column:span 4;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-button.primary{background:#2f7bea;color:#fff;border:0;border-radius:7px;padding:10px 20px;
-  font:700 14px/1 "Gothic A1",sans-serif;cursor:pointer}
-button.primary:hover{background:#4a8ef0}
-.hint{color:#8fa0b4;font-size:12px}
-@media (max-width:760px){.controls{grid-template-columns:repeat(2,minmax(0,1fr))}.controls .go{grid-column:span 2}}
+  padding-block:20px 18px;padding-top:calc(20px + env(safe-area-inset-top,0px));
+  border-bottom:3px solid var(--line)}
+.board .wrap{display:flex;flex-direction:column;gap:16px}
+.brandrow{display:flex;align-items:center;gap:11px;flex-wrap:wrap}
+.brandrow h1{margin:0;font-size:25px;line-height:1}
+.brandrow .tagline{color:var(--board-2);font-size:12px;letter-spacing:.01em}
+.controls{display:grid;gap:9px 11px;grid-template-columns:repeat(4,minmax(0,1fr))}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field label{font-size:10.5px;letter-spacing:.1em;color:var(--board-2);font-weight:700}
+.field input,.field select{width:100%;background:#1f232a;border:1px solid #333942;color:#f1f4f7;
+  border-radius:2px;padding:9px 10px;font:inherit;font-size:14px}
+.field input:focus-visible,.field select:focus-visible,button:focus-visible{
+  outline:2px solid var(--line);outline-offset:1px}
+.controls .go{grid-column:span 4;display:flex;gap:11px;align-items:center;flex-wrap:wrap}
+button.primary{background:var(--line);color:#fff;border:0;border-radius:2px;padding:10px 22px;
+  font-family:"Black Han Sans",sans-serif;font-size:14.5px;cursor:pointer;letter-spacing:.02em}
+button.primary:hover{filter:brightness(1.12)}
+.hint{color:var(--board-2);font-size:11.5px}
+@media (max-width:780px){.controls{grid-template-columns:repeat(2,minmax(0,1fr))}.controls .go{grid-column:span 2}}
 @media (max-width:430px){.controls{grid-template-columns:1fr}.controls .go{grid-column:span 1}
-  .brandrow p{display:none}}
+  .brandrow .tagline{display:none}}
 
 /* ── 즐겨찾기 ── */
-.favs{display:flex;flex-wrap:wrap;gap:7px;align-items:center;
-  border-top:1px solid #22303f;padding-top:14px}
-.favs-label{font-size:11px;letter-spacing:.08em;color:#8fa0b4;font-weight:700;margin-right:3px}
-.fav{display:inline-flex;align-items:stretch;border:1px solid #2b3a4c;border-radius:999px;
-  background:#16212e;overflow:hidden}
-.fav.active{border-color:#2f7bea;background:#1b2e49}
-.fav button{background:none;border:0;color:#dce6f2;font:inherit;font-size:12.5px;cursor:pointer;
-  padding:6px 4px 6px 13px}
-.fav button em{font-style:normal;color:#8fa0b4;margin-left:7px;
-  font-family:"IBM Plex Mono",monospace;font-size:11.5px}
-.fav.active button em{color:#a8c6f0}
-.fav .fav-x{padding:6px 11px 6px 7px;color:#6d7f93;font-size:14px;line-height:1}
-.fav .fav-x:hover{color:#ff8f8f}
+.favs{display:flex;flex-wrap:wrap;gap:6px;align-items:center;
+  border-top:1px solid #272b31;padding-top:13px}
+.favs-label{font-size:10.5px;letter-spacing:.1em;color:var(--board-2);font-weight:700;margin-right:3px}
+.fav{display:inline-flex;align-items:stretch;border:1px solid #333942;border-radius:2px;background:#1f232a}
+.fav.active{border-color:var(--line);background:#252a32}
+.fav button{background:none;border:0;color:#dfe4ea;font:inherit;font-size:12px;cursor:pointer;padding:5px 3px 5px 10px}
+.fav button em{font-style:normal;color:var(--board-2);margin-left:6px;
+  font-family:"IBM Plex Mono",monospace;font-size:11px}
+.fav .fav-x{padding:5px 9px 5px 6px;color:#697280;font-size:13px}
+.fav .fav-x:hover{color:#ff9090}
 .fav button:hover{color:#fff}
-.fav-add{border:1px dashed #38485c;border-radius:999px;background:none;color:#8fa0b4;
-  font:600 12.5px/1 "Noto Sans KR",sans-serif;padding:7px 13px;cursor:pointer}
-.fav-add:hover:not(:disabled){border-color:#2f7bea;color:#cfe0f5}
-.fav-add:disabled{opacity:.45;cursor:default}
+.fav-add{border:1px dashed #3d444e;border-radius:2px;background:none;color:var(--board-2);
+  font:600 12px/1 "Noto Sans KR",sans-serif;padding:6px 11px;cursor:pointer}
+.fav-add:hover:not(:disabled){border-color:var(--line);color:#e7ecf2}
+.fav-add:disabled{opacity:.4;cursor:default}
 
-main{padding-block:22px calc(40px + env(safe-area-inset-bottom,0px));
-  display:flex;flex-direction:column;gap:22px}
-.card{background:var(--surface);border:1px solid var(--rule);border-radius:12px;box-shadow:var(--shadow)}
-.card.pad{padding:18px}
-h2{font-size:15px;font-weight:700;margin-bottom:10px}
-h2 .sub{font-weight:400;color:var(--ink-3);font-size:12.5px;margin-left:8px;letter-spacing:0}
+/* ── 본문: 카드 대신 규칙선으로 나눕니다 ── */
+main{padding-block:0 calc(44px + env(safe-area-inset-bottom,0px))}
+section{padding-block:26px;border-top:1px solid var(--rule)}
+section:first-child{border-top:0;padding-top:22px}
+h2{margin:0 0 14px;font-family:"Black Han Sans",sans-serif;font-weight:400;
+  font-size:15px;letter-spacing:.01em}
+h2 .sub{font-family:"Noto Sans KR",sans-serif;font-weight:400;color:var(--ink-3);
+  font-size:12px;margin-left:9px;letter-spacing:0}
+.eyebrow{font-size:10.5px;letter-spacing:.14em;color:var(--ink-3);font-weight:700}
 
-/* ── 추천 ── */
-.hero{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:0}
-.hero-left{padding:20px;border-right:1px solid var(--rule)}
-.hero-right{padding:20px;display:flex;flex-direction:column;gap:14px}
-@media (max-width:720px){.hero{grid-template-columns:1fr}.hero-left{border-right:0;border-bottom:1px solid var(--rule)}}
-.depart{display:flex;align-items:flex-end;gap:10px;margin-top:4px}
-.depart .t{font-family:"IBM Plex Mono",monospace;font-size:52px;font-weight:600;letter-spacing:-.03em;line-height:1}
-.depart .at{color:var(--ink-2);font-size:13px;padding-bottom:7px}
-.trip{margin-top:12px;display:flex;flex-wrap:wrap;gap:6px 16px;color:var(--ink-2);font-size:13px}
-.trip b{color:var(--ink);font-weight:600}
-.statline{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
-.statline .k{font-size:12.5px;color:var(--ink-2)}
-.statline .v{font-family:"IBM Plex Mono",monospace;font-size:26px;font-weight:600;line-height:1.1}
-.statline .v small{font-size:13px;font-weight:500;color:var(--ink-3);margin-left:2px}
-.meter{height:8px;border-radius:999px;background:var(--surface-2);overflow:hidden;margin-top:6px;
-  border:1px solid var(--rule-2)}
-.meter i{display:block;height:100%;background:var(--accent);border-radius:999px}
-.chips{display:flex;flex-wrap:wrap;gap:6px}
-.chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 10px;
-  font-size:12px;font-weight:700;border:1px solid var(--rule);background:var(--surface-2);color:var(--ink-2)}
-.chip .dot{width:8px;height:8px;border-radius:50%;flex:none}
-.chip.line{color:#fff;border:0;font-family:"Gothic A1",sans-serif}
-.note{background:var(--accent-soft);border:1px solid var(--rule);border-radius:10px;padding:12px 14px;
-  font-size:13px;color:var(--ink-2)}
-.note b{color:var(--ink)}
-.warnbox{border-left:3px solid var(--critical)}
+/* ── 출발 사인: 이 화면에서 유일하게 큰 소리 ── */
+.sign-band{background:var(--line);color:#fff;padding:18px 20px 16px;
+  display:grid;grid-template-columns:auto 1fr;gap:4px 20px;align-items:end}
+.sign-band .lead{grid-column:1;font-size:11px;letter-spacing:.14em;opacity:.82;font-weight:700}
+.sign-band .clock{grid-column:1;font-family:"IBM Plex Mono",monospace;font-weight:600;
+  font-size:clamp(46px,13vw,68px);line-height:.92;letter-spacing:-.035em}
+.sign-band .where{grid-column:2;grid-row:2;padding-bottom:9px;font-size:14px;line-height:1.45}
+.sign-band .where b{font-weight:700}
+.sign-band .where span{opacity:.82}
+.sign-rows{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));
+  border:1px solid var(--rule);border-top:0;background:var(--sheet)}
+.sign-rows>div{padding:11px 14px;border-left:1px solid var(--rule-2)}
+.sign-rows>div:first-child{border-left:0}
+.sign-rows .k{font-size:10.5px;letter-spacing:.08em;color:var(--ink-3);font-weight:700}
+.sign-rows .v{font-family:"IBM Plex Mono",monospace;font-size:21px;font-weight:600;line-height:1.25}
+.sign-rows .v small{font-size:12px;font-weight:500;color:var(--ink-3);margin-left:3px;
+  font-family:"Noto Sans KR",sans-serif}
+.bar{height:4px;background:var(--rule-2);margin-top:7px}
+.bar i{display:block;height:100%;background:var(--line)}
 
-/* ── 경로 스트립 ── */
-.route{display:flex;flex-direction:column;gap:0;margin-top:4px}
-.leg{display:grid;grid-template-columns:76px 1fr;gap:12px;padding:11px 0;border-top:1px solid var(--rule-2)}
-.leg:first-child{border-top:0}
-.leg .bar{border-radius:4px;width:6px;justify-self:start;margin-left:14px;grid-row:span 1}
-.leg .when{font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--ink-2)}
-.leg .what{min-width:0}
-.leg .what .top{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.leg .what .det{color:var(--ink-3);font-size:12.5px;margin-top:3px}
-.xfer{font-size:12.5px;color:var(--ink-2);padding:8px 0 8px 88px;border-top:1px dashed var(--rule);
-  background:var(--surface-2)}
+.callout{border-left:3px solid var(--line);background:var(--sheet);
+  padding:11px 14px;font-size:13px;color:var(--ink-2);margin-top:12px}
+.callout b{color:var(--ink)}
+.callout.warn{border-left-color:var(--critical)}
+
+/* ── 세로 노선도 ── */
+.track{margin-top:4px}
+.trk{display:grid;grid-template-columns:52px 26px 1fr;align-items:start}
+.trk .time{font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--ink-2);
+  text-align:right;padding-right:12px;padding-top:1px}
+.trk .rail{position:relative;justify-self:center;width:26px;align-self:stretch}
+.trk .rail::before{content:"";position:absolute;left:50%;transform:translateX(-50%);
+  top:0;bottom:0;width:6px;background:var(--c,var(--line))}
+.trk.stop .rail::before{top:9px}
+.trk.stop.last .rail::before{bottom:auto;height:0}
+.trk .dot{position:absolute;left:50%;top:3px;transform:translateX(-50%);
+  width:14px;height:14px;border-radius:50%;background:var(--sheet);
+  border:3.5px solid var(--c,var(--line));z-index:1}
+.trk.stop .name{font-weight:700;font-size:15px;line-height:1.3;padding-bottom:12px}
+.trk.stop .name small{display:block;font-weight:400;font-size:12px;color:var(--ink-3);
+  letter-spacing:.01em;margin-top:1px}
+.trk.ride{padding-block:2px}
+.trk.ride .body{padding:0 0 14px 2px;color:var(--ink-2);font-size:12.5px;line-height:1.65}
+.trk.ride .body .hd{display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  color:var(--ink);font-size:13px;margin-bottom:2px}
+.trk.xfer .body{padding:2px 0 14px 2px;font-size:12.5px;color:var(--ink-2)}
+.trk.xfer .rail::before{background:repeating-linear-gradient(
+  to bottom,var(--c,var(--line)) 0 6px,transparent 6px 12px)}
+.badge{display:inline-flex;align-items:center;justify-content:center;color:#fff;
+  font-family:"Black Han Sans",sans-serif;font-size:11.5px;line-height:1;
+  min-width:22px;height:22px;border-radius:999px;padding:0 7px;letter-spacing:.02em}
 
 /* ── 차트 ── */
-.panels{display:flex;flex-direction:column;gap:4px}
-.panel-title{display:flex;justify-content:space-between;align-items:baseline;gap:10px;
-  font-size:12.5px;color:var(--ink-2);padding:0 2px 2px}
-.panel-title b{color:var(--ink);font-weight:600;font-size:13px}
 svg{display:block;width:100%;height:auto;overflow:visible}
 .tip{position:fixed;pointer-events:none;z-index:40;background:var(--board);color:#eef3f8;
-  border-radius:8px;padding:8px 10px;font-size:12px;line-height:1.5;box-shadow:0 8px 24px -8px rgba(0,0,0,.6);
-  opacity:0;transition:opacity .12s;max-width:230px}
+  border-radius:2px;padding:8px 10px;font-size:12px;line-height:1.5;
+  box-shadow:0 6px 20px -6px rgba(0,0,0,.55);opacity:0;transition:opacity .12s;max-width:230px}
 .tip.on{opacity:1}
 .tip .tt{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:13px}
-.tip em{color:#9fb3c8;font-style:normal}
+.tip em{color:#9aa4b0;font-style:normal}
 
 /* ── 표 ── */
-.scroll{overflow-x:auto}
-table{border-collapse:collapse;width:100%;font-size:13px;min-width:560px}
-th,td{text-align:right;padding:8px 10px;border-bottom:1px solid var(--rule-2);white-space:nowrap}
-th{font-size:11px;letter-spacing:.06em;color:var(--ink-3);font-weight:700;text-align:right;
-  border-bottom:1px solid var(--rule);position:sticky;top:0;background:var(--surface)}
+.scroll{overflow-x:auto;border:1px solid var(--rule);background:var(--sheet)}
+table{border-collapse:collapse;width:100%;font-size:12.5px;min-width:560px}
+th,td{text-align:right;padding:7px 11px;border-bottom:1px solid var(--rule-2);white-space:nowrap}
+th{font-size:10.5px;letter-spacing:.07em;color:var(--ink-3);font-weight:700;
+  border-bottom:1px solid var(--rule);position:sticky;top:0;background:var(--sheet)}
 th:first-child,td:first-child{text-align:left}
 td.num{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
-tr.best td{background:var(--accent-soft)}
+tbody tr:hover td{background:var(--rule-2)}
+tr.best td{background:color-mix(in srgb,var(--line) 13%,transparent);font-weight:600}
 tr.out td{color:var(--ink-3)}
-.tag{display:inline-block;font-size:10.5px;font-weight:700;border-radius:4px;padding:1px 6px;
-  background:var(--accent);color:#fff;margin-left:6px;vertical-align:1px}
+.tag{display:inline-block;font-size:10px;font-weight:700;border-radius:2px;padding:1px 5px;
+  background:var(--line);color:#fff;margin-left:6px;vertical-align:1px}
 .tag.ghost{background:transparent;border:1px solid var(--rule);color:var(--ink-3)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;border-radius:2px;padding:3px 9px;
+  font-size:11.5px;font-weight:700;border:1px solid var(--rule);background:var(--sheet);color:var(--ink-2)}
+.chip .dot{width:7px;height:7px;border-radius:50%;flex:none}
 
-footer.sources{color:var(--ink-3);font-size:12.5px;line-height:1.7;
-  border-top:1px solid var(--rule);padding-top:16px}
-footer.sources a{color:var(--ink-2)}
-footer.sources h3{font-size:12.5px;color:var(--ink-2);margin-bottom:4px}
-footer.sources ul{margin:0 0 10px;padding-left:18px}
-.empty{padding:28px 18px;text-align:center;color:var(--ink-3)}
-.card .hint{color:var(--ink-3);font-size:11.5px;margin-top:8px;display:block}
+footer.sources{color:var(--ink-3);font-size:12px;line-height:1.75;
+  border-top:1px solid var(--rule);padding-top:18px;margin-top:26px}
+footer.sources h3{font-size:12px;color:var(--ink-2);margin:0 0 3px;font-weight:700}
+footer.sources ul{margin:0 0 10px;padding-left:17px}
+.empty{padding:34px 0;text-align:center;color:var(--ink-3)}
+.card{background:none;border:0}   /* 더는 카드로 감싸지 않습니다 — 구획은 규칙선이 합니다 */
+.card.pad{padding:0}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -185,8 +206,8 @@ footer.sources ul{margin:0 0 10px;padding-left:18px}
 <header class="board">
   <div class="wrap">
     <div class="brandrow">
-      <h1>앉아서 가기</h1>
-      <p>출퇴근 시각에 맞춰 가장 앉을 가능성이 큰 열차를 찾습니다 · 수도권 전철 프로토타입</p>
+      <h1 class="sign">앉아서 가기</h1>
+      <p class="tagline">출퇴근 시각에 맞춰 가장 앉을 가능성이 큰 열차 · 수도권 전철</p>
     </div>
     <form class="controls" id="form">
       <div class="field"><label for="home">집 역</label>
