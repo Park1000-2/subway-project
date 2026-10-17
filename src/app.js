@@ -28,40 +28,67 @@ const LEVEL_COLOR = {
 };
 
 const STORE = 'sitting-commute:v2';
-const FIELDS = ['home', 'work', 'basis', 'time', 'day', 'mode', 'buffer', 'window', 'walk'];
-const LABELS = {
-  arrive: {
-    time: '회사 도착 시각', walk: '집에서 역까지 도보(분)',
-    window: '일찍 도착해도 괜찮은 한도(분)',
-    windowHelp: '목표 시각보다 이만큼 넘게 일찍 도착하는 열차는 후보에서 뺍니다',
-  },
-  depart: {
-    time: '회사에서 나서는 시각', walk: '회사에서 역까지 도보(분)',
-    window: '역에서 기다려도 괜찮은 한도(분)',
-    windowHelp: '역에서 이만큼 넘게 기다려야 하는 열차는 후보에서 뺍니다',
-  },
+const FIELDS = ['home', 'work', 'trip', 'timeBasis', 'time', 'day', 'mode', 'buffer', 'window', 'walk'];
+
+/**
+ * '무슨 길'과 '시각 기준'은 원래 별개입니다.
+ *   무슨 길  — 어느 역에서 어느 역으로 (집→회사 / 회사→집 / 직접 지정)
+ *   시각 기준 — 그 시각까지 도착할지(arrive), 그 시각 이후 출발할지(depart)
+ * 출퇴근은 조합이 뻔해서 묶어 두고, '다른 곳'일 때만 기준을 직접 고르게 합니다.
+ */
+const TRIPS = {
+  'to-work': { basis: 'arrive', from: 'home', to: 'work', place: '집',
+    home: '집 역', work: '회사 역', time: '회사 도착 시각', walk: '집에서 역까지 도보(분)' },
+  'to-home': { basis: 'depart', from: 'work', to: 'home', place: '회사',
+    home: '집 역', work: '회사 역', time: '회사에서 나서는 시각', walk: '회사에서 역까지 도보(분)' },
+  free: { basis: null, from: 'home', to: 'work', place: '',
+    home: '출발역', work: '도착역', time: null, walk: '출발역까지 도보(분)' },
 };
+const BASIS_LABELS = {
+  arrive: { window: '일찍 도착해도 괜찮은 한도(분)',
+    windowHelp: '목표 시각보다 이만큼 넘게 일찍 도착하는 열차는 후보에서 뺍니다' },
+  depart: { window: '역에서 기다려도 괜찮은 한도(분)',
+    windowHelp: '역에서 이만큼 넘게 기다려야 하는 열차는 후보에서 뺍니다' },
+};
+const tripOf = (v) => TRIPS[v] ?? TRIPS['to-work'];
+/** 예전에 저장한 값은 basis(arrive/depart)만 들고 있어서 trip 으로 옮겨 줍니다 */
+function migrate(v) {
+  if (v && v.basis && !v.trip) {
+    v.trip = v.basis === 'depart' ? 'to-home' : 'to-work';
+    v.timeBasis = v.basis;
+  }
+  return v;
+}
 
 /* ── 입력 ── */
 $('stations').innerHTML = ALL_STATIONS.map((s) => `<option value="${esc(s)}">`).join('');
 try {
   const saved = JSON.parse(localStorage.getItem(STORE) || 'null');
-  if (saved) for (const f of FIELDS) if (saved[f] != null) $(f).value = saved[f];
+  const v = migrate(saved);
+  if (v) for (const f of FIELDS) if (v[f] != null) $(f).value = v[f];
 } catch { /* 저장값 없이 기본값으로 시작 */ }
 
-/** 기준(출근/퇴근)에 따라 라벨과 기본 시각을 바꿉니다 */
-function syncBasis(changed) {
-  const basis = $('basis').value;
-  const L = LABELS[basis];
-  $('timeLabel').textContent = L.time;
-  $('windowLabel').textContent = L.window;
-  $('windowLabel').title = L.windowHelp;
-  $('window').title = L.windowHelp;
-  $('walkLabel').textContent = L.walk;
-  $('bufferField').hidden = basis === 'depart';   // 퇴근은 도착 기한이 없습니다
+/** 무슨 길 / 시각 기준에 따라 라벨과 보이는 입력란을 맞춥니다 */
+function syncMode(changed) {
+  const t = tripOf($('trip').value);
+  const free = t.basis === null;
+  const basis = free ? ($('timeBasis').value || 'depart') : t.basis;
+  const B = BASIS_LABELS[basis];
+  $('homeLabel').textContent = t.home;
+  $('workLabel').textContent = t.work;
+  $('timeLabel').textContent = t.time
+    ?? (basis === 'arrive' ? '도착 목표 시각' : '출발 기준 시각');
+  $('walkLabel').textContent = t.walk;
+  $('windowLabel').textContent = B.window;
+  $('windowLabel').title = B.windowHelp;
+  $('window').title = B.windowHelp;
+  $('timeBasisField').hidden = !free;            // 출퇴근은 기준이 정해져 있습니다
+  $('bufferField').hidden = basis === 'depart';  // 출발 기준에는 도착 기한이 없습니다
   if (changed) {
-    $('time').value = basis === 'arrive' ? '09:00' : '18:00';
-    $('window').value = basis === 'arrive' ? 45 : 45;
+    const now = new Date();
+    $('time').value = free
+      ? `${String(now.getHours()).padStart(2, '0')}:${String(Math.floor(now.getMinutes() / 5) * 5).padStart(2, '0')}`
+      : basis === 'arrive' ? '09:00' : '18:00';
   }
 }
 
@@ -75,7 +102,7 @@ const sameState = (a, b) => FIELDS.every((f) => String(a[f]) === String(b[f]));
 function loadFavs() {
   try {
     const v = JSON.parse(localStorage.getItem(FAV_STORE) || '[]');
-    return Array.isArray(v) ? v.filter((x) => x && x.home && x.work) : [];
+    return Array.isArray(v) ? v.filter((x) => x && x.home && x.work).map(migrate) : [];
   } catch { return []; }
 }
 function saveFavs(list) {
@@ -84,11 +111,13 @@ function saveFavs(list) {
 
 /** '서울역 → 강남' 처럼 실제 진행 방향으로 보여 줍니다 */
 function favLabel(f) {
-  const toWork = f.basis !== 'depart';
-  return {
-    route: `${toWork ? f.home : f.work} → ${toWork ? f.work : f.home}`,
-    when: `${toWork ? '출근' : '퇴근'} ${f.time}`,
-  };
+  const v = migrate({ ...f });
+  const t = tripOf(v.trip);
+  const pick = { home: v.home, work: v.work };
+  const basis = t.basis ?? (v.timeBasis === 'arrive' ? 'arrive' : 'depart');
+  const kind = t.basis === 'arrive' ? '출근' : t.basis === 'depart' ? '퇴근'
+    : basis === 'arrive' ? '도착' : '출발';
+  return { route: `${pick[t.from]} → ${pick[t.to]}`, when: `${kind} ${v.time}` };
 }
 
 function renderFavs() {
@@ -118,7 +147,7 @@ $('favs').addEventListener('click', (e) => {
     const f = favs[Number(go.dataset.go)];
     if (!f) return;
     for (const k of FIELDS) if (f[k] != null) $(k).value = f[k];
-    syncBasis(false);
+    syncMode(false);
     run();
   } else if (del) {
     favs.splice(Number(del.dataset.del), 1);
@@ -135,12 +164,13 @@ $('favs').addEventListener('click', (e) => {
 function readForm() {
   const v = Object.fromEntries(FIELDS.map((f) => [f, $(f).value]));
   try { localStorage.setItem(STORE, JSON.stringify(v)); } catch { /* 저장 실패는 무시 */ }
-  const basis = v.basis === 'depart' ? 'depart' : 'arrive';
+  const t = tripOf(v.trip);
+  const basis = t.basis ?? (v.timeBasis === 'arrive' ? 'arrive' : 'depart');
   const home = v.home.trim(), work = v.work.trim();
+  const pick = { home, work };
   return {
-    home, work, basis,
-    from: basis === 'arrive' ? home : work,
-    to: basis === 'arrive' ? work : home,
+    home, work, basis, trip: v.trip, place: t.place,
+    from: pick[t.from], to: pick[t.to],
     anchor: parseHHMM(v.time),
     dayType: v.day, mode: v.mode,
     buffer: Number(v.buffer) || 0,
@@ -186,12 +216,14 @@ function renderSummary(plan, opts) {
 
   const band = el('div', 'sign-band');
   band.innerHTML = `
-    <div class="lead">${depart ? '퇴근 추천' : '출근 추천'}</div>
+    <div class="lead">${{ 'to-work': '출근 추천', 'to-home': '퇴근 추천' }[opts.trip] ?? '추천 열차'}</div>
     <div class="clock">${toHHMM(best.boardTime)}</div>
     <div class="where"><b>${esc(opts.from)}</b>에서 승차<br>
       <span>${toHHMM(best.arrival)} ${esc(opts.to)} 도착 · ${Math.round(best.totalMinutes)}분 ·
       환승 ${route.transfers}회 ·
-      ${depart ? `퇴근 후 ${Math.round(best.wait)}분 뒤` : `목표까지 ${Math.round(best.slack)}분 여유`}</span></div>`;
+      ${depart
+        ? `${opts.trip === 'to-home' ? '퇴근 후' : '기준 시각에서'} ${Math.round(best.wait)}분 뒤`
+        : `목표까지 ${Math.round(best.slack)}분 여유`}</span></div>`;
 
   const rows = el('div', 'sign-rows');
   rows.innerHTML = `
@@ -207,7 +239,7 @@ function renderSummary(plan, opts) {
   host.append(band, rows);
 
   host.append(el('div', 'callout', `
-    ${depart ? '회사' : '집'}에서 <b class="mono">${toHHMM(leave)}</b>에 나서면
+    ${opts.place ? `${opts.place}에서 ` : ''}<b class="mono">${toHHMM(leave)}</b>에 나서면
     도보 ${opts.walk}분 + 대기 ${idle}분으로 이 열차를 탑니다.
     ${depart && best.wait > 6 ? `<br>${toHHMM(opts.anchor)}에 바로 나서면 역에서 <b>${Math.round(best.wait)}분</b>을 기다리게 됩니다.` : ''}`));
 
@@ -538,6 +570,7 @@ function renderCars(plan) {
   const target = c.targetCar;
   const board = c.balanced;
   const moving = board.moveCars > 0;
+  const quietLabel = c.quietCars.map((x) => x.car).join('·');
 
   const W = 720, H = 210, PL = 38, PR = 14, PT = 56, PB = 44;
   const maxC = Math.max(...cars.map((x) => x.congestion)) * 1.14;
@@ -638,7 +671,7 @@ function renderTrains(plan, opts) {
     const depart = opts.basis === 'depart';
     const tag = o === plan.best ? '<span class="tag">추천</span>'
       : o === plan.alternative ? '<span class="tag ghost">대안</span>'
-      : !o.onTime ? `<span class="tag ghost">${depart ? '퇴근 전' : '지각'}</span>`
+      : !o.onTime ? `<span class="tag ghost">${depart ? '너무 이름' : '지각'}</span>`
       : o.outOfWindow ? `<span class="tag ghost">${depart ? '너무 늦게' : '너무 일찍'}</span>` : '';
     return `<tr class="${cls}">
       <td class="num">${toHHMM(o.boardTime)}${tag}</td>
@@ -714,6 +747,8 @@ if ('serviceWorker' in navigator && topLevel
 
 $('form').addEventListener('submit', run);
 for (const f of ['day', 'mode']) $(f).addEventListener('change', run);
-$('basis').addEventListener('change', () => { syncBasis(true); run(); });
-syncBasis(false);
+for (const f of ['trip', 'timeBasis']) {
+  $(f).addEventListener('change', () => { syncMode(f === 'trip'); run(); });
+}
+syncMode(false);
 run();

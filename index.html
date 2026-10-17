@@ -210,14 +210,20 @@ footer.sources ul{margin:0 0 10px;padding-left:17px}
       <p class="tagline">출퇴근 시각에 맞춰 가장 앉을 가능성이 큰 열차 · 수도권 전철</p>
     </div>
     <form class="controls" id="form">
-      <div class="field"><label for="home">집 역</label>
+      <div class="field"><label for="home" id="homeLabel">집 역</label>
         <input id="home" list="stations" autocomplete="off" value="서울역" spellcheck="false"></div>
-      <div class="field"><label for="work">회사 역</label>
+      <div class="field"><label for="work" id="workLabel">회사 역</label>
         <input id="work" list="stations" autocomplete="off" value="강남" spellcheck="false"></div>
-      <div class="field"><label for="basis">기준</label>
-        <select id="basis">
-          <option value="arrive">출근 — 집 → 회사</option>
-          <option value="depart">퇴근 — 회사 → 집</option>
+      <div class="field"><label for="trip">무슨 길</label>
+        <select id="trip">
+          <option value="to-work">출근 — 집 → 회사</option>
+          <option value="to-home">퇴근 — 회사 → 집</option>
+          <option value="free">다른 곳 — 직접 지정</option>
+        </select></div>
+      <div class="field" id="timeBasisField"><label for="timeBasis">시각 기준</label>
+        <select id="timeBasis">
+          <option value="depart">이 시각 이후 출발</option>
+          <option value="arrive">이 시각까지 도착</option>
         </select></div>
       <div class="field"><label for="time" id="timeLabel">회사 도착 시각</label>
         <input id="time" type="time" class="mono" value="09:00" step="300"></div>

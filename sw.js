@@ -7,7 +7,7 @@
  * 파일을 고치면 CACHE 값을 바꾸세요(같은 날 여러 번이면 뒤에 -2, -3). 새 버전이
  * 설치되고 옛 캐시는 지워집니다. 안 바꾸면 이미 설치한 기기가 옛 파일을 계속 씁니다.
  */
-const CACHE = 'sitting-commute-2026-10-17-2';
+const CACHE = 'sitting-commute-2026-10-17-3';
 const FONTS = 'sitting-commute-fonts';
 
 /** 앱이 도는 데 필요한 전부 (data/ 의 원본 CSV 는 빌드 산출물이라 제외) */
